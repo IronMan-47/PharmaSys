@@ -41,11 +41,17 @@ router.post('/seed', async (req, res) => {
 // Add a new medicine (Stock In)
 router.post('/', async (req, res) => {
   try {
+    const price = parseFloat(req.body.price);
+    const stock = parseInt(req.body.stock);
+    if (isNaN(price) || price < 0) return res.status(400).json({ error: 'Valid positive price is required' });
+    if (isNaN(stock) || stock < 0) return res.status(400).json({ error: 'Valid positive stock is required' });
+    if (!req.body.name) return res.status(400).json({ error: 'Name is required' });
+
     const newMedicine = {
       name: req.body.name,
-      category: req.body.category,
-      price: req.body.price,
-      stock: req.body.stock,
+      category: req.body.category || 'Uncategorized',
+      price: price,
+      stock: stock,
       targetSpecies: req.body.targetSpecies || 'Human',
       description: req.body.description || '',
       composition: req.body.composition || '',
@@ -64,7 +70,10 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { stock } = req.body;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid medicine ID' });
+    
+    const stock = parseInt(req.body.stock);
+    if (isNaN(stock) || stock < 0) return res.status(400).json({ error: 'Valid positive stock is required' });
     
     await req.db.collection('medicines').updateOne(
       { _id: new ObjectId(id) },
@@ -80,6 +89,8 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid medicine ID' });
+    
     await req.db.collection('medicines').deleteOne({ _id: new ObjectId(id) });
     res.json({ message: 'Medicine deleted' });
   } catch (err) {
@@ -91,13 +102,14 @@ router.delete('/:id', async (req, res) => {
 router.put('/:id/add-stock', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid medicine ID' });
+    
     const { quantity, receivalDate, expiryDate } = req.body;
+    const parsedQuantity = parseInt(quantity);
 
-    if (!quantity || quantity <= 0) {
+    if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
       return res.status(400).json({ error: 'Valid quantity is required' });
     }
-
-    const { ObjectId } = require('mongodb');
     
     // First, find the medicine to get its name
     const medicine = await req.db.collection('medicines').findOne({ _id: new ObjectId(id) });
@@ -108,14 +120,14 @@ router.put('/:id/add-stock', async (req, res) => {
     // Update the stock
     await req.db.collection('medicines').updateOne(
       { _id: new ObjectId(id) },
-      { $inc: { stock: parseInt(quantity) } }
+      { $inc: { stock: parsedQuantity } }
     );
 
     // Create a log entry
     const logEntry = {
       medicineId: new ObjectId(id),
       medicineName: medicine.name,
-      quantityAdded: parseInt(quantity),
+      quantityAdded: parsedQuantity,
       receivalDate: receivalDate || new Date(),
       expiryDate: expiryDate || null,
       timestamp: new Date()

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Frontend Training Part1 React Architecture</title>
+<style>
+    body {
+        font-family: "Times New Roman", Times, serif;
+        line-height: 1.6;
+        color: #000;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 40px;
+        background-color: #fff;
+    }
+    h1 { text-align: center; font-size: 24px; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+    h2 { font-size: 20px; border-bottom: 1px solid #000; padding-bottom: 5px; margin-top: 30px; }
+    h3 { font-size: 16px; margin-top: 20px; }
+    p, li { font-size: 12pt; text-align: justify; }
+    pre { background-color: #f4f4f4; padding: 15px; border: 1px solid #ddd; border-radius: 5px; font-family: "Courier New", Courier, monospace; font-size: 10pt; overflow-x: auto; }
+    code { font-family: "Courier New", Courier, monospace; background-color: #f4f4f4; padding: 2px 4px; }
+    hr { border: 0; border-top: 2px solid #000; margin: 30px 0; }
+</style>
+</head>
+<body>
+<h1>Frontend Training - Part 1: The React Architecture (SPA &amp; Virtual DOM)</h1>
+<p>To defend this project, you must first explain <em>why</em> we chose React over traditional HTML/CSS development. The answer comes down to two major architectural concepts: Single Page Applications (SPA) and the Virtual DOM.</p>
+<h3>The Single Page Application (SPA)</h3>
+<p>In the 2000s, websites operated on a Multi-Page Architecture. If a user clicked a link, the browser sent a request to the server, downloaded a completely new HTML file, and the screen flashed white while loading it. For a high-speed pharmacy POS system handling a rush of customers, this network latency is unacceptable.</p>
+<p>PharmaSys is an <strong>SPA</strong>. There is literally only one HTML file (<code>index.html</code>). 
+We use a library called <code>react-router-dom</code> to intercept the user&#39;s clicks. When the pharmacist clicks &quot;Inventory&quot;, the browser does not talk to the server. React simply uses JavaScript to erase the dashboard and draw the inventory instantly.</p>
+<h3>The Virtual DOM</h3>
+<p>In vanilla JavaScript, updating the screen requires manually finding the HTML element and changing it, which is incredibly slow for large lists.</p>
+<p>React creates a &quot;Virtual DOM&quot;—a lightweight, invisible copy of the screen stored in RAM. When data changes, React redraws the invisible copy first, compares it to the real screen, mathematically calculates the exact pixels that are different, and ONLY updates those specific pixels. This is what allows our POS cart to calculate totals instantly without the webpage freezing.</p>
+<p><strong>Summary for Judges:</strong>
+<em>&quot;To guarantee maximum speed and zero network latency during billing operations, PharmaSys is engineered as a Single Page Application using React. By utilizing client-side routing, we eliminate server page reloads entirely. Furthermore, React&#39;s Virtual DOM ensures that when a transaction occurs, only the modified components are dynamically re-rendered, preserving CPU performance.&quot;</em></p>
+
+</body>
+</html>

@@ -5,7 +5,10 @@ require('dotenv').config();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  credentials: true
+}));
 app.use(express.json());
 
 const PORT = process.env.PORT || 5001;
@@ -33,10 +36,16 @@ async function run() {
       next();
     });
 
-    app.use('/api/medicines', require('./routes/medicines'));
-    app.use('/api/transactions', require('./routes/transactions'));
+    const { authenticate } = require('./middleware/authMiddleware');
+
+    // Public route
     app.use('/api/auth', require('./routes/auth'));
-    app.use('/api/logs', require('./routes/logs'));
+
+    // Protected routes
+    app.use('/api/medicines', authenticate, require('./routes/medicines'));
+    app.use('/api/transactions', authenticate, require('./routes/transactions'));
+    app.use('/api/logs', authenticate, require('./routes/logs'));
+    app.use('/api/pharmai', authenticate, require('./routes/pharmai'));
 
     app.get('/', (req, res) => {
       res.send('Pharmacy V2 API is running');

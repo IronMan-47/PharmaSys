@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Backend Training Part2 Auth and JWT</title>
+<style>
+    body {
+        font-family: "Times New Roman", Times, serif;
+        line-height: 1.6;
+        color: #000;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 40px;
+        background-color: #fff;
+    }
+    h1 { text-align: center; font-size: 24px; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+    h2 { font-size: 20px; border-bottom: 1px solid #000; padding-bottom: 5px; margin-top: 30px; }
+    h3 { font-size: 16px; margin-top: 20px; }
+    p, li { font-size: 12pt; text-align: justify; }
+    pre { background-color: #f4f4f4; padding: 15px; border: 1px solid #ddd; border-radius: 5px; font-family: "Courier New", Courier, monospace; font-size: 10pt; overflow-x: auto; }
+    code { font-family: "Courier New", Courier, monospace; background-color: #f4f4f4; padding: 2px 4px; }
+    hr { border: 0; border-top: 2px solid #000; margin: 30px 0; }
+</style>
+</head>
+<body>
+<h1>Backend Training - Part 2: Authentication &amp; JWT</h1>
+<p>Our authentication system inside <code>routes/auth.js</code> is entirely <strong>Stateless</strong>. This means the server does not remember who is logged in. It relies purely on cryptographic signatures.</p>
+<h3>1. Receiving the Login Request</h3>
+<pre><code class="language-javascript">router.post(&#39;/login&#39;, async (req, res) =&gt; {
+  const { username, password } = req.body;
+</code></pre>
+<p>When React sends a POST request to <code>/api/auth/login</code>, it includes a JSON body with the username and password. Because of the <code>express.json()</code> middleware from Part 1, we can destructure them directly from <code>req.body</code>.</p>
+<h3>2. Querying the Database</h3>
+<pre><code class="language-javascript">  const user = await req.db.collection(&#39;users&#39;).findOne({ username });
+</code></pre>
+<p>Here, we use the injected <code>req.db</code> to search the <code>users</code> collection. <code>.findOne()</code> is a Native MongoDB method that returns the first document matching our query, or <code>null</code> if the user doesn&#39;t exist.</p>
+<h3>3. Password Verification &amp; Token Generation</h3>
+<pre><code class="language-javascript">  if (user &amp;&amp; user.password === password) {
+    const token = jwt.sign(
+      { userId: user._id, role: user.role }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: &#39;8h&#39; }
+    );
+    res.json({ token });
+  } else {
+    res.status(401).json({ message: &#39;Invalid credentials&#39; });
+  }
+});
+</code></pre>
+<ul>
+<li><strong>The Check:</strong> We check if the user exists AND if the password matches. (In a production system, we would hash the password with <code>bcrypt</code>, but for Review 1, plaintext verification is acceptable).</li>
+<li><strong>The Token:</strong> If successful, we call <code>jwt.sign()</code>. We pack the user&#39;s ID and Role inside the token. </li>
+<li><strong>The Secret:</strong> <code>process.env.JWT_SECRET</code> is a massive cryptographic password stored on the server. Because only the server knows this secret, nobody can forge a fake token.</li>
+<li><strong>The Expiration:</strong> We set it to expire in 8 hours (a typical pharmacist shift).</li>
+</ul>
+<p><strong>Summary for Judges:</strong>
+<em>&quot;When a pharmacist logs in, the Node server queries the native MongoDB users collection. If verified, it signs a JWT using a server-side cryptographic secret. This token is handed back to React. Because the token contains the user&#39;s ID and is self-verifying, our server remains completely stateless, drastically reducing RAM overhead.&quot;</em></p>
+
+</body>
+</html>

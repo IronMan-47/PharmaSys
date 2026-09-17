@@ -14,4 +14,22 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Delete a stock log
+router.delete('/:id', async (req, res) => {
+  try {
+    const { ObjectId } = require('mongodb');
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid log ID' });
+    
+    const result = await req.db.collection('stock_logs').deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 1) {
+      res.json({ message: 'Log deleted successfully' });
+    } else {
+      res.status(404).json({ error: 'Log not found' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete stock log' });
+  }
+});
+
 module.exports = router;

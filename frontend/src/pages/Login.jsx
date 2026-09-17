@@ -2,8 +2,12 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { Stethoscope, Lock, User } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+
 
 function Login() {
+  const { t } = useTranslation();
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -24,18 +28,18 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col justify-center items-center p-4">
       
       <div className="mb-8 flex flex-col items-center">
         <div className="bg-black text-white p-4 rounded-2xl mb-4 shadow-lg">
           <Stethoscope size={40} />
         </div>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">PharmaSys</h1>
-        <p className="text-gray-500 mt-2">Admin Authentication Gateway</p>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">PharmaSys</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-2">Admin Authentication Gateway</p>
       </div>
 
-      <div className="bg-white w-full max-w-md p-8 rounded-3xl shadow-sm border border-gray-100">
-        <h2 className="text-2xl font-bold mb-6 text-gray-900">Secure Login</h2>
+      <div className="bg-white dark:bg-gray-900 w-full max-w-md p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800">
+        <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">Secure Login</h2>
         
         {errorMsg && (
           <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium mb-6 border border-red-100">
@@ -45,7 +49,7 @@ function Login() {
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Username</label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input 
@@ -53,14 +57,14 @@ function Login() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-black transition-all"
                 placeholder="Enter admin username"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input 
@@ -68,7 +72,7 @@ function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-black transition-all"
                 placeholder="Enter password"
               />
             </div>

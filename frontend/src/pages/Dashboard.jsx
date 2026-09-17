@@ -1,33 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api, { pythonApi } from '../api';
 import { ShoppingCart, Plus, Minus, X, AlertTriangle, Printer, Search, PackageOpen } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useTranslation } from 'react-i18next';
+
 
 function Dashboard() {
+  const { t } = useTranslation();
+
   const [medicines, setMedicines] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSpecies, setFilterSpecies] = useState('All');
   const [cart, setCart] = useState([]);
-  const [customerInfo, setCustomerInfo] = useState({ name: '', zipCode: '' });
+  const [customerInfo, setCustomerInfo] = useState({ name: '', zipCode: '', condition: '' });
   
   // Dashboard states
   const [lowStockMeds, setLowStockMeds] = useState([]);
   const [recentTransactions, setRecentTransactions] = useState([]);
+  const [totalTransactions, setTotalTransactions] = useState(0);
 
   // Fetch data
   const fetchData = async () => {
     try {
-      const medRes = await axios.get(`${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}`}/api/medicines`);
+      const medRes = await api.get("/api/medicines");
       setMedicines(medRes.data);
       
-      // Calculate low stock items (less than 10 units)
-      const lowStock = medRes.data.filter(m => m.stock > 0 && m.stock < 10);
-      setLowStockMeds(lowStock);
+      try {
+        const aiRes = await pythonApi.get("/api/analytics/sales");
+        const restockRecs = aiRes.data.filter(a => a.restockRecommended);
+        setLowStockMeds(restockRecs);
+      } catch (aiErr) {
+        console.error("AI service unreachable, using fallback", aiErr);
+        setLowStockMeds(medRes.data.filter(m => m.stock <= 10));
+      }
 
-      const transRes = await axios.get(`${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}`}/api/transactions`);
+      const transRes = await api.get("/api/transactions");
       // Just take the latest 5 for the mini dashboard
       setRecentTransactions(transRes.data.slice(0, 5));
+      setTotalTransactions(transRes.data.length);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -103,6 +114,7 @@ function Dashboard() {
     doc.text(`Date: ${new Date().toLocaleString()}`, 14, 36);
     doc.text(`Customer: ${customerInfo.name || 'Walk-in Customer'}`, 14, 42);
     doc.text(`Location Zip: ${customerInfo.zipCode || 'N/A'}`, 14, 48);
+      doc.text(`Condition: ${customerInfo.condition || 'Not Entered'}`, 14, 54);
 
     // Table Data
     const tableColumn = ["Medicine Name", "Quantity", "Price", "Total"];
@@ -116,7 +128,7 @@ function Dashboard() {
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 55,
+      startY: 62,
       theme: 'plain', // Very clean monochrome theme for PDF
       headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255] },
       alternateRowStyles: { fillColor: [245, 245, 245] }
@@ -137,10 +149,11 @@ function Dashboard() {
     if (cart.length === 0) return;
     
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}`}/api/transactions`, {
+      const res = await api.post("/api/transactions", {
         items: cart,
         customerName: customerInfo.name,
-        zipCode: customerInfo.zipCode
+        zipCode: customerInfo.zipCode,
+        condition: customerInfo.condition
       });
       
       // Trigger PDF download
@@ -148,7 +161,7 @@ function Dashboard() {
       
       // Reset POS state
       setCart([]);
-      setCustomerInfo({ name: '', zipCode: '' });
+      setCustomerInfo({ name: '', zipCode: '', condition: '' });
       setSearchTerm('');
       
       // Refresh Dashboard data
@@ -166,8 +179,8 @@ function Dashboard() {
       
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900">Dashboard & POS</h2>
-          <p className="text-gray-500 mt-1">Overview and active billing calculator.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">{t("Dashboard")}</h2>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{t("Overview and active billing calculator.")}</p>
         </div>
       </div>
 
@@ -180,33 +193,33 @@ function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
             {/* Low Stock Alert Widget */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden">
               <div className="flex justify-between items-start mb-2">
-                <h3 className="text-gray-500 font-medium">Low Stock Alerts</h3>
+                <h3 className="text-gray-500 dark:text-gray-400 font-medium">{t("Low Stock Alerts")}</h3>
                 <div className="p-2 bg-red-50 text-red-600 rounded-lg">
                   <AlertTriangle size={20} />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">{lowStockMeds.length} Items</div>
-              <p className="text-sm text-gray-400">Need immediate restock</p>
+              <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">{lowStockMeds.length} Items</div>
+              <p className="text-sm text-gray-400">{t("Need immediate restock")}</p>
             </div>
             
             {/* Recent Sales Widget */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden">
               <div className="flex justify-between items-start mb-2">
-                <h3 className="text-gray-500 font-medium">Recent Sales</h3>
-                <div className="p-2 bg-gray-50 text-gray-600 rounded-lg">
+                <h3 className="text-gray-500 dark:text-gray-400 font-medium">{t("Recent Sales")}</h3>
+                <div className="p-2 bg-gray-50 dark:bg-gray-950 text-gray-600 dark:text-gray-400 rounded-lg">
                   <ShoppingCart size={20} />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">{recentTransactions.length}</div>
-              <p className="text-sm text-gray-400">Transactions processed recently</p>
+              <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">{totalTransactions}</div>
+              <p className="text-sm text-gray-400">{t("Transactions processed recently")}</p>
             </div>
 
           </div>
 
           {/* POS Item Selector */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
             <h3 className="text-lg font-semibold mb-6 flex items-center">
               <Search className="mr-2 text-gray-400" size={20} />
               Search & Add Items
@@ -215,20 +228,20 @@ function Dashboard() {
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <input 
                 type="text" 
-                placeholder="Search inventory by name to add to cart..." 
+                placeholder={t("Search inventory by name to add to cart...")} 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black transition-all text-lg"
+                className="flex-1 px-4 py-3 bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-black transition-all text-lg"
               />
-              <div className="flex bg-gray-100 p-1 rounded-xl">
+              <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
                 {['All', 'Human', 'Animal'].map(species => (
                   <button
                     key={species}
                     onClick={() => setFilterSpecies(species)}
                     className={`px-6 py-2 rounded-lg font-medium transition-colors ${
                       filterSpecies === species 
-                        ? 'bg-white text-black shadow-sm' 
-                        : 'text-gray-500 hover:text-black hover:bg-gray-200/50'
+                        ? 'bg-white dark:bg-gray-900 text-black dark:text-white shadow-sm' 
+                        : 'text-gray-500 dark:text-gray-400 hover:text-black dark:text-white hover:bg-gray-200/50'
                     }`}
                   >
                     {species}
@@ -242,25 +255,25 @@ function Dashboard() {
                 <button 
                   key={med._id}
                   onClick={() => addToCart(med)}
-                  className="text-left p-4 rounded-xl border border-gray-200 hover:border-black hover:shadow-md transition-all group bg-white"
+                  className="text-left p-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-black hover:shadow-md transition-all group bg-white dark:bg-gray-900"
                 >
                   <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-semibold text-gray-900 truncate pr-2">{med.name}</h4>
+                    <h4 className="font-semibold text-gray-900 dark:text-gray-100 truncate pr-2">{med.name}</h4>
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0 ${med.targetSpecies === 'Human' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
                       {med.targetSpecies || 'Human'}
                     </span>
                   </div>
-                  <div className="text-[10px] text-gray-500 truncate mb-1">
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate mb-1">
                     {med.composition || 'No composition'}
                   </div>
                   <div className="flex justify-between items-end mt-4">
-                    <span className="text-sm font-mono font-bold text-gray-600">₹{med.price.toFixed(2)}</span>
-                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Stock: {med.stock}</span>
+                    <span className="text-sm font-mono font-bold text-gray-600 dark:text-gray-400">₹{med.price.toFixed(2)}</span>
+                    <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{t("Stock")}: {med.stock}</span>
                   </div>
                 </button>
               ))}
               {filteredMeds.length === 0 && (
-                <div className="col-span-full py-8 text-center text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+                <div className="col-span-full py-8 text-center text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
                   No items found in stock.
                 </div>
               )}
@@ -271,48 +284,55 @@ function Dashboard() {
 
         {/* RIGHT COLUMN: Billing Calculator (Cart) */}
         <div className="xl:col-span-1">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[800px] sticky top-8">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col h-[800px] sticky top-8">
             
-            <div className="p-6 border-b border-gray-100">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800">
               <h3 className="text-xl font-bold flex items-center">
-                <ShoppingCart className="mr-2 text-black" size={24} />
-                Current Order
+                <ShoppingCart className="mr-2 text-black dark:text-white" size={24} />
+                {t("Current Order")}
               </h3>
             </div>
 
-            {/* Customer Data (AI Prep) */}
-            <div className="p-4 border-b border-gray-100 bg-gray-50/50 space-y-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Customer Details (Optional)</p>
-              <input 
-                type="text" 
-                placeholder="Customer Name" 
-                value={customerInfo.name}
-                onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black"
-              />
-              <input 
-                type="text" 
-                placeholder="Zip / Pin Code (For AI geographic tracking)" 
-                value={customerInfo.zipCode}
-                onChange={(e) => setCustomerInfo({...customerInfo, zipCode: e.target.value})}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black"
-              />
-            </div>
+              {/* Customer Data (AI Prep) */}
+              <div className="p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 space-y-3">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">{t("CUSTOMER DETAILS (OPTIONAL)")}</p>
+                <input 
+                  type="text" 
+                  placeholder={t("Customer Name")} 
+                  value={customerInfo.name}
+                  onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                />
+                <input 
+                  type="text" 
+                  placeholder={t("Zip / Pin Code")} 
+                  value={customerInfo.zipCode}
+                  onChange={(e) => setCustomerInfo({...customerInfo, zipCode: e.target.value})}
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                />
+                <input 
+                  type="text" 
+                  placeholder={t("Patient Condition (e.g. Fever, Malaria)")} 
+                  value={customerInfo.condition}
+                  onChange={(e) => setCustomerInfo({...customerInfo, condition: e.target.value})}
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                />
+              </div>
 
             {/* Cart Items */}
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-gray-400">
                   <PackageOpen size={48} className="mb-4 text-gray-200" />
-                  <p>Cart is empty</p>
-                  <p className="text-sm mt-1">Select items from the left to begin</p>
+                  <p>{t("Cart is empty")}</p>
+                  <p className="text-sm mt-1">{t("Select items from the left to begin")}</p>
                 </div>
               ) : (
                 <ul className="space-y-4">
                   {cart.map(item => (
-                    <li key={item.medicineId} className="flex flex-col p-3 border border-gray-100 rounded-xl bg-gray-50">
+                    <li key={item.medicineId} className="flex flex-col p-3 border border-gray-100 dark:border-gray-800 rounded-xl bg-gray-50 dark:bg-gray-950">
                       <div className="flex justify-between items-start mb-2">
-                        <span className="font-semibold text-gray-900">{item.name}</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">{item.name}</span>
                         <button 
                           onClick={() => removeFromCart(item.medicineId)}
                           className="text-gray-400 hover:text-red-500 transition-colors"
@@ -323,8 +343,8 @@ function Dashboard() {
                       <div className="flex justify-between items-center mt-2">
                         <div className="flex flex-col space-y-2">
                           {/* Main Quantity Controls */}
-                          <div className="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg p-1 w-max">
-                            <button onClick={() => updateQuantity(item.medicineId, item.quantity - 1)} className="p-1.5 hover:bg-gray-100 rounded text-gray-500"><Minus size={14}/></button>
+                          <div className="flex items-center space-x-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-1 w-max">
+                            <button onClick={() => updateQuantity(item.medicineId, item.quantity - 1)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded text-gray-500 dark:text-gray-400"><Minus size={14}/></button>
                             <input 
                               type="number" 
                               value={item.quantity} 
@@ -342,7 +362,7 @@ function Dashboard() {
                               }}
                               className="font-mono text-sm w-12 text-center focus:outline-none focus:ring-0 bg-transparent hide-spinners"
                             />
-                            <button onClick={() => updateQuantity(item.medicineId, item.quantity + 1)} className="p-1.5 hover:bg-gray-100 rounded text-gray-500"><Plus size={14}/></button>
+                            <button onClick={() => updateQuantity(item.medicineId, item.quantity + 1)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded text-gray-500 dark:text-gray-400"><Plus size={14}/></button>
                           </div>
                           
                           {/* Preset Quick Add Buttons */}
@@ -351,14 +371,14 @@ function Dashboard() {
                               <button 
                                 key={amount}
                                 onClick={() => addPresetQuantity(item.medicineId, amount)}
-                                className="text-[10px] bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-2 py-1 rounded transition-colors"
+                                className="text-[10px] bg-gray-200 hover:bg-gray-300 text-gray-700 dark:text-gray-300 font-bold px-2 py-1 rounded transition-colors"
                               >
                                 +{amount}
                               </button>
                             ))}
                           </div>
                         </div>
-                        <span className="font-mono font-bold text-gray-800 text-lg">₹{(item.price * (parseInt(item.quantity) || 1)).toFixed(2)}</span>
+                        <span className="font-mono font-bold text-gray-800 dark:text-gray-200 text-lg">₹{(item.price * (parseInt(item.quantity) || 1)).toFixed(2)}</span>
                       </div>
                     </li>
                   ))}
@@ -367,10 +387,10 @@ function Dashboard() {
             </div>
 
             {/* Checkout Section */}
-            <div className="p-6 border-t border-gray-100 bg-white rounded-b-2xl">
+            <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-b-2xl">
               <div className="flex justify-between items-center mb-6">
-                <span className="text-gray-500 font-medium">Total Amount</span>
-                <span className="text-3xl font-bold font-mono text-black">₹{cartTotal.toFixed(2)}</span>
+                <span className="text-gray-500 dark:text-gray-400 font-medium">{t("Total Amount")}</span>
+                <span className="text-3xl font-bold font-mono text-black dark:text-white">₹{cartTotal.toFixed(2)}</span>
               </div>
               
               <button 
@@ -378,12 +398,12 @@ function Dashboard() {
                 disabled={cart.length === 0}
                 className={`w-full py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center space-x-2 ${
                   cart.length === 0 
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed' 
                     : 'bg-black text-white hover:bg-gray-800 shadow-md hover:shadow-lg'
                 }`}
               >
                 <Printer size={20} />
-                <span>Complete & Generate PDF</span>
+                <span>{t("Complete & Generate PDF")}</span>
               </button>
             </div>
 

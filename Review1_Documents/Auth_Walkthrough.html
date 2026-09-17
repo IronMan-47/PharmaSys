@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>PharmaSys: Authentication System Guide</title>
+<style>
+    body {
+        font-family: "Times New Roman", Times, serif;
+        line-height: 1.6;
+        color: #000;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 40px;
+        background-color: #fff;
+    }
+    h1 {
+        text-align: center;
+        font-size: 24px;
+        margin-bottom: 5px;
+    }
+    h2 {
+        font-size: 20px;
+        border-bottom: 1px solid #000;
+        padding-bottom: 5px;
+        margin-top: 30px;
+    }
+    h3 {
+        font-size: 16px;
+        margin-top: 20px;
+    }
+    p, li {
+        font-size: 12pt;
+        text-align: justify;
+    }
+    pre {
+        background-color: #f4f4f4;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-family: "Courier New", Courier, monospace;
+        font-size: 10pt;
+        overflow-x: auto;
+    }
+    code {
+        font-family: "Courier New", Courier, monospace;
+        background-color: #f4f4f4;
+        padding: 2px 4px;
+    }
+    hr {
+        border: 0;
+        border-top: 2px solid #000;
+        margin: 30px 0;
+    }
+</style>
+</head>
+<body>
+
+<h1>PharmaSys: Authentication System Guide</h1>
+
+<p>This guide documents the Admin Authentication system implementation within the PharmaSys architecture.</p>
+
+<h2>1. System Overview</h2>
+<p>The authentication flow addresses two primary access control constraints:</p>
+<ol>
+    <li><strong>Identity Verification:</strong> Processing credentials via the Login Form.</li>
+    <li><strong>Route Protection:</strong> Validating authorization state prior to rendering secured components.</li>
+</ol>
+<p>This is achieved via a Client-Server verification model. The React Frontend communicates with the Express Backend to verify administrative credentials. Upon successful validation, the backend issues a <strong>JWT (JSON Web Token)</strong> to maintain the session state.</p>
+
+<h2>2. Backend Authentication API (<code>backend/routes/auth.js</code>)</h2>
+<p>The backend route processes the authentication payload.</p>
+
+<pre>
+router.post('/login', (req, res) => {
+  const { username, password } = req.body;
+
+  if (username === 'admin1' && password === '12345678') {
+    const token = jwt.sign({ username }, 'secret_key', { expiresIn: '24h' });
+    return res.json({ success: true, token });
+  }
+
+  return res.status(401).json({ success: false, error: 'Invalid credentials' });
+});
+</pre>
+<p><strong>Implementation Details:</strong> The <code>username</code> and <code>password</code> are extracted from the request body. If the credentials match the database requirements, the <code>jsonwebtoken</code> library signs a secure <code>token</code> valid for 24 hours. Invalid attempts yield a <code>401 Unauthorized</code> HTTP response.</p>
+
+<h2>3. Frontend Global State (<code>frontend/src/context/AuthContext.jsx</code>)</h2>
+<p>To propagate the authentication state across the application tree, the system leverages React's <strong>Context API</strong>.</p>
+<ul>
+    <li><strong><code>token</code> state:</strong> The JWT is stored persistently in the browser's <code>localStorage</code> to maintain session viability across page reloads.</li>
+    <li><strong><code>login</code> function:</strong> Executes an Axios POST request to the backend and persists the resulting token.</li>
+    <li><strong><code>logout</code> function:</strong> Clears the token from <code>localStorage</code> and resets the application state.</li>
+</ul>
+
+<h2>4. Protected Routes (<code>App.jsx</code>)</h2>
+<p>Critical interfaces such as the Dashboard and Inventory are secured using a higher-order component.</p>
+
+<pre>
+function ProtectedRoute({ children }) {
+  const { token } = useContext(AuthContext);
+  
+  if (!token) {
+    return &lt;Navigate to="/login" replace /&gt;;
+  }
+  
+  return children;
+}
+</pre>
+
+<p>In the primary router configuration, layouts are nested within this protection layer:</p>
+<pre>
+&lt;Route path="/*" element={
+  &lt;ProtectedRoute&gt;
+    &lt;MainLayout /&gt;
+  &lt;/ProtectedRoute&gt;
+} /&gt;
+</pre>
+<p>Unauthorized direct URL access (e.g., navigating directly to <code>/inventory</code>) is intercepted by the <code>ProtectedRoute</code>, resulting in an immediate redirection to the authentication interface.</p>
+
+<h2>5. Summary</h2>
+<p>The system utilizes a fully functional, token-based authentication architecture:</p>
+<ul>
+    <li>The Node.js backend securely issues signed JWTs.</li>
+    <li>The React frontend stores tokens persistently via <code>localStorage</code>.</li>
+    <li>Application routes are strictly protected from unauthorized access via Context API state checks.</li>
+</ul>
+
+</body>
+</html>

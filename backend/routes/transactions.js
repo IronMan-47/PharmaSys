@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
 
 // Create a new transaction (POS Billing checkout)
 router.post('/', async (req, res) => {
-  const { items, customerName, zipCode } = req.body;
+  const { items, customerName, zipCode, condition } = req.body;
   
   if (!items || items.length === 0) {
     return res.status(400).json({ error: 'No items in transaction' });
@@ -28,6 +28,13 @@ router.post('/', async (req, res) => {
   try {
     // 1. Calculate total and verify stock
     for (const item of items) {
+      if (!ObjectId.isValid(item.medicineId)) {
+        return res.status(400).json({ error: `Invalid medicine ID for ${item.name}` });
+      }
+      if (typeof item.quantity !== 'number' || item.quantity <= 0) {
+        return res.status(400).json({ error: `Invalid quantity for ${item.name}` });
+      }
+      
       const medicine = await req.db.collection('medicines').findOne({ _id: new ObjectId(item.medicineId) });
       if (!medicine) return res.status(404).json({ error: `Medicine ${item.name} not found` });
       if (medicine.stock < item.quantity) {
@@ -44,19 +51,20 @@ router.post('/', async (req, res) => {
       );
     }
 
-    // 3. Save the transaction (Preparing for future AI Regression models with zipCode & timestamp)
+    // 3. Save the transaction (Preparing for future AI Regression models with zipCode, condition & timestamp)
     const newTransaction = {
       items,
       totalAmount,
       customerName: customerName || 'Walk-in Customer',
       zipCode: zipCode || 'Unknown',
+      condition: condition || 'General',
       createdAt: new Date(),
     };
-
+    
     const result = await req.db.collection('transactions').insertOne(newTransaction);
     res.status(201).json({ _id: result.insertedId, ...newTransaction });
   } catch (err) {
-    res.status(400).json({ error: 'Checkout failed' });
+    res.status(400).json({ error: 'Failed to process transaction' });
   }
 });
 
@@ -64,6 +72,9 @@ router.post('/', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid transaction ID' });
+    }
     await req.db.collection('transactions').deleteOne({ _id: new ObjectId(id) });
     res.json({ message: 'Transaction deleted' });
   } catch (err) {

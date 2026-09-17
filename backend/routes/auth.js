@@ -2,18 +2,23 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 
-// Hardcoded for simplicity (As requested by user)
-const ADMIN_USERNAME = 'admin1';
-const ADMIN_PASSWORD = '12345678';
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_pharmasys_key';
+// Load credentials from environment
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin1'; // Fallback for dev ease, but env preferred
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '12345678';
 
 // Login Route
 router.post('/login', (req, res) => {
   const { username, password } = req.body;
 
   if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      console.error("CRITICAL ERROR: JWT_SECRET is not configured");
+      return res.status(500).json({ success: false, error: 'Server configuration error' });
+    }
+
     // Generate a simple token valid for 24 hours
-    const token = jwt.sign({ username, role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign({ username, role: 'admin' }, secret, { expiresIn: '24h' });
     
     return res.json({ 
       success: true, 
